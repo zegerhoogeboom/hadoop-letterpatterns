@@ -22,6 +22,7 @@ public class LetterPatternJob extends Configured implements Tool
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
 		job.setMapperClass(LetterPatternMapper.class);
+//		job.setPartitionerClass(KeyPartitioner.class);
 		job.setReducerClass(LetterPatternReducer.class);
 
 		job.setOutputKeyClass(Text.class);

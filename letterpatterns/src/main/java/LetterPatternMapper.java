@@ -13,7 +13,7 @@ class LetterPatternMapper extends Mapper<LongWritable, Text, Text, LetterKeyValu
 		for (String word : split) {
 			for (int letterIndex = 0; letterIndex < word.length() - 1; letterIndex++) {
 				context.write(
-						new Text(String.valueOf(word.charAt(letterIndex) + word.charAt(letterIndex + 1))),
+						new Text(String.valueOf(word.charAt(letterIndex))),
 						new LetterKeyValue(String.valueOf(word.charAt(letterIndex + 1)), 1)
 				);
 			}
