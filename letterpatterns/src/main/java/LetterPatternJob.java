@@ -19,6 +19,12 @@ import java.util.TreeMap;
  */
 public class LetterPatternJob extends Configured implements Tool
 {
+	int currentLetter = 0;
+	String alphabet = "abcdefghijklmnopqrstuvwxyz";
+	Map<String, Integer> reverseTotals = new TreeMap<>();
+	Formatter formatter = new Formatter();
+	BufferedWriter writer;
+
 	public int run(String[] args) throws Exception
 	{
 		Job job = Job.getInstance(getConf());
@@ -42,67 +48,93 @@ public class LetterPatternJob extends Configured implements Tool
 
 	public static void main(String[] args) throws Exception
 	{
-		int rc = ToolRunner.run(new LetterPatternJob(), args);
+		LetterPatternJob job = new LetterPatternJob();
+		int rc = ToolRunner.run(job, args);
 
 		FileInputStream fstream = new FileInputStream("output/part-r-00000"); //should be reading any file like part-r-xxxxx
 		BufferedReader reader = new BufferedReader(new InputStreamReader(fstream));
-
 		FileOutputStream fos = new FileOutputStream("output/final.txt");
-		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fos));
+		job.writer = new BufferedWriter(new OutputStreamWriter(fos));
 
-		String alphabet = "abcdefghijklmnopqrstuvwxyz";
+		job.setupHeader();
+
 		String line;
-		Formatter formatter = new Formatter();
-		String header = formatter.format("%8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s",
+		while ((line = reader.readLine()) != null) {
+			job.processLine(line);
+		}
+
+		job.setupBottom();
+
+		job.writer.close();
+		reader.close();
+		System.exit(rc);
+	}
+
+	private void setupHeader() throws IOException
+	{
+		String header = this.formatter.format("%8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s",
 				"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z").toString();
 		writer.write(header);
 		writer.newLine();
+	}
 
-		Map<String, Integer> reverseTotals = new TreeMap<>();
-
-		while ((line = reader.readLine()) != null) {
-			formatter = new Formatter();
-			String key = line.split("\t")[0];
-			String value = line.split("\t")[1];
-			String[] split = value.split(",");
-
-			formatter = formatter.format("%1s", key);
-			int currentLetter = 0;
-			int columnValue = 0;
-			for (String s : split) {
-				String[] keyValuePair = s.split(":");
-				String columnKey = keyValuePair[0];
-				if (keyValuePair.length == 1) {
-					formatter = formatter.format("%8d", Integer.parseInt(columnKey));
-					break;
-				}
-				columnValue = Integer.parseInt(keyValuePair[1]);
-				int letterIndex = alphabet.indexOf(columnKey);
-				while (letterIndex != currentLetter) {
-					formatter = formatter.format("%8d", 0);
-					currentLetter++;
-					if (letterIndex != currentLetter || letterIndex == 0) {
-					}
-				}
-
-				Integer totalForLetter = reverseTotals.get(columnKey);
-				if (totalForLetter == null) totalForLetter = 0;
-				reverseTotals.put(columnKey, totalForLetter + columnValue);
-				formatter = formatter.format("%8d", columnValue);
-			}
-			writer.write(formatter.toString());
-			writer.newLine();
+	private void setupBottom() throws IOException
+	{
+		this.formatter = new Formatter();
+		for (Map.Entry<String, Integer> entry : this.reverseTotals.entrySet()) {
+			this.formatter = this.formatter.format("%8s", entry.getKey() + ":" + entry.getValue());
 		}
+		writer.write(this.formatter.toString());
+	}
 
+	private void processLine(String line) throws IOException
+	{
 		formatter = new Formatter();
-		for (Map.Entry<String, Integer> entry : reverseTotals.entrySet()) {
-			formatter = formatter.format("%8s", entry.getKey() + ":" + entry.getValue());
+		String key = line.split("\t")[0];
+		String value = line.split("\t")[1];
+		String[] split = value.split(",");
+
+		formatter = formatter.format("%1s", key);
+		this.currentLetter = 0;
+		for (String s : split) {
+			formatter = this.processKeyValueString(s);
 		}
 
 		writer.write(formatter.toString());
+		writer.newLine();
+	}
 
-		writer.close();
-		reader.close();
-		System.exit(rc);
+	private Formatter processKeyValueString(String toBeSplit)
+	{
+		String[] keyValuePair = toBeSplit.split(":");
+		String columnKey = keyValuePair[0];
+		if (keyValuePair.length == 1) {  //total isn't split by ":"
+			formatter = formatter.format("%8d", Integer.parseInt(columnKey));
+			return formatter;
+		}
+		int columnValue = Integer.parseInt(keyValuePair[1]);
+		formatter = this.processKeyValuePair(columnKey, columnValue);
+		return formatter;
+	}
+
+	private Formatter processKeyValuePair(String key, int value)
+	{
+		int letterIndex = alphabet.indexOf(key);
+		formatter = this.setupZeros(letterIndex);
+		Integer totalForLetter = reverseTotals.get(key);
+		if (totalForLetter == null) totalForLetter = 0;
+		reverseTotals.put(key, totalForLetter + value);
+		formatter = formatter.format("%8d", value);
+		return formatter;
+	}
+
+	private Formatter setupZeros(int letterIndex)
+	{
+		this.currentLetter++;
+		if (letterIndex != (currentLetter - 1)) { //always increase the currentletter, just compare the equals with the previous value
+			formatter = formatter.format("%8d", 0);
+			return setupZeros(letterIndex);
+		}
+		return formatter;
 	}
 }
